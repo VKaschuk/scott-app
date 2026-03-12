@@ -6,7 +6,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-
+import org.apache.commons.lang3.ObjectUtils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
@@ -79,6 +79,35 @@ public class DepartmentDaoImpl implements Dao<Department>{
            LOG.log(Level.SEVERE,"Errot while Getting Department by id: ",e);
        }
         return dept;
+    }
+
+    @Override
+    public int insert(Department t) {
+        if(t == null||ObjectUtils.anyNull(t.getDeptno(),t.getDname(),t.getLoc())){
+            LOG.log(Level.INFO, "Can't insert empty Department object.");
+            return 0;
+        }
+        String sqlQuery = "insert into dept(deptno, dname, loc) values(?, ?, ?);";
+        try(Connection conn = scottDS.getConnection();
+            PreparedStatement prst = conn.prepareStatement(sqlQuery);){
+            prst.setInt(1, t.getDeptno());
+            prst.setString(2, t.getDname());
+            prst.setString(3, t.getLoc());
+            return prst.executeUpdate();
+        }catch(SQLException e){
+            LOG.log(Level.SEVERE,"Error while insert value into Dept table: ",e);
+            return 0;
+        }
+    }
+
+    @Override
+    public void update(Department t) {
+        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    }
+
+    @Override
+    public void delete(Department t) {
+        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
     }
     
 }
