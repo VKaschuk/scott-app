@@ -2,12 +2,13 @@ package my.scott.dao;
 
 
 import java.util.List;
+import java.util.Optional;
 
 public interface Dao<T> {
     List<T> getAll();
-    T getById(int id);
+    Optional<T> getById(int id);
     int insert(T t);
-    void update(T t);
-    void delete(T t);
+    boolean update(T t);
+    boolean delete(T t);
     
 }

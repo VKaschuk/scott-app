@@ -6,9 +6,10 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import org.apache.commons.lang3.ObjectUtils;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
@@ -19,6 +20,11 @@ import my.scott.model.Department;
 public class DepartmentDaoImpl implements Dao<Department>{
 
     private static final Logger LOG = Logger.getLogger(DepartmentDaoImpl.class.getName());
+    private static final String SELECT_ALL = "SELECT a.deptno, a.dname, a.loc FROM dept a";
+    private static final String SELECT_BY_ID = "SELECT deptno, dname, loc FROM dept WHERE deptno = ?";
+    private static final String INSERT_STATEMENT = "INSERT INTO dept(deptno, dname, loc) VALUES(?, ?, ?)";
+    private static final String UPDATE_STATEMENT = "UPDATE dept SET dname = ?, loc = ? WHERE deptno = ?";
+    private static final String DELETE_STATEMENT = "DELETE FROM dept WHERE deptno = ?";
     
     private DataSource scottDS;
     
@@ -37,9 +43,8 @@ public class DepartmentDaoImpl implements Dao<Department>{
     @Override
     public List<Department> getAll() {
         List<Department> depts = new ArrayList<>();
-        String sqlQuery = "SELECT a.deptno, a.dname, a.loc FROM dept a";
         try(Connection conn = scottDS.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(sqlQuery);
+                PreparedStatement stmt = conn.prepareStatement(SELECT_ALL);
                 ResultSet rs = stmt.executeQuery()){
             
             while(rs.next()){
@@ -63,36 +68,35 @@ public class DepartmentDaoImpl implements Dao<Department>{
     }
 
     @Override
-    public Department getById(int id){
-        String sqlQuery = "select deptno, dname, loc from dept where deptno = ?";
-        Department dept = null;
+    public Optional<Department> getById(int id){
+        
         try(Connection conn = scottDS.getConnection();
-            PreparedStatement prst = conn.prepareStatement(sqlQuery);){
+            PreparedStatement prst = conn.prepareStatement(SELECT_BY_ID);){
            
           prst.setInt(1, id);
           try( ResultSet rs = prst.executeQuery()){
             while(rs.next()){
-             dept = getDepartment(rs);
+             return Optional.of(getDepartment(rs));
             }
           }
        }catch(SQLException e){
            LOG.log(Level.SEVERE,"Errot while Getting Department by id: ",e);
        }
-        return dept;
+        return Optional.empty();
     }
 
     @Override
-    public int insert(Department t) {
-        if(t == null||ObjectUtils.anyNull(t.getDeptno(),t.getDname(),t.getLoc())){
+    public int insert(Department d) {
+        if(d == null||isInvalid(d)){
             LOG.log(Level.INFO, "Can't insert empty Department object.");
             return 0;
         }
-        String sqlQuery = "insert into dept(deptno, dname, loc) values(?, ?, ?);";
+       
         try(Connection conn = scottDS.getConnection();
-            PreparedStatement prst = conn.prepareStatement(sqlQuery);){
-            prst.setInt(1, t.getDeptno());
-            prst.setString(2, t.getDname());
-            prst.setString(3, t.getLoc());
+            PreparedStatement prst = conn.prepareStatement(INSERT_STATEMENT);){
+            prst.setInt(1, d.getDeptno());
+            prst.setString(2, d.getDname());
+            prst.setString(3, d.getLoc());
             return prst.executeUpdate();
         }catch(SQLException e){
             LOG.log(Level.SEVERE,"Error while insert value into Dept table: ",e);
@@ -101,13 +105,44 @@ public class DepartmentDaoImpl implements Dao<Department>{
     }
 
     @Override
-    public void update(Department t) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    public boolean update(Department d) {
+        
+        Objects.requireNonNull(d);
+        
+        try(Connection conn = scottDS.getConnection();
+            PreparedStatement prst = conn.prepareStatement(UPDATE_STATEMENT)){
+            prst.setString(1, d.getDname());
+            prst.setString(2, d.getLoc());
+            prst.setInt(3, d.getDeptno());
+            int result = prst.executeUpdate();
+            
+            if(result == 0){
+                LOG.log(Level.INFO, "Department not found for update {0}.",d.getDeptno());
+            }
+            return result > 0;
+        }catch(SQLException e){
+            LOG.log(Level.SEVERE,"Error during update department. ",e);
+            return false;
+        }
     }
 
     @Override
-    public void delete(Department t) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    public boolean delete(Department d) {
+        Objects.requireNonNull(d);
+        try(Connection conn = scottDS.getConnection();
+             PreparedStatement prst = conn.prepareStatement(DELETE_STATEMENT))
+        {
+            prst.setInt(1, d.getDeptno());
+            return prst.executeUpdate()>0;
+            
+        }catch(SQLException e){
+            LOG.log(Level.SEVERE, "Error during delete department "+d.getDeptno(),e);
+            return false;
+        }
+    }
+ 
+    private boolean isInvalid(Department d){
+        return d.getDeptno() <= 0 || d.getDname() == null || d.getLoc() == null;
     }
     
 }
